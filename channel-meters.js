@@ -13,9 +13,11 @@ class ChannelMeters extends HTMLElement {
         this.leftBaseline = 0;
         this.rightBaseline = 0;
         this.calibrationSamples = 0;
-        this.leftHistory = [];
-        this.rightHistory = [];
-        this.historySize = 3;
+        this.leftSmooth = 0;
+        this.rightSmooth = 0;
+        this.attackFactor = 0.8;
+        this.decayFactor = 0.1;
+        this.minLevel = 2;
         this.noiseGate = 25;
     }
 
@@ -84,8 +86,8 @@ class ChannelMeters extends HTMLElement {
         this.rightBar.style.width = '0%';
         this.leftValue.textContent = '0%';
         this.rightValue.textContent = '0%';
-        this.leftHistory = [];
-        this.rightHistory = [];
+        this.leftSmooth = 0;
+        this.rightSmooth = 0;
     }
 
     animate() {
@@ -97,8 +99,17 @@ class ChannelMeters extends HTMLElement {
         const leftLevel = this.calculateFilteredRMS(this.leftDataArray, 'left');
         const rightLevel = this.calculateFilteredRMS(this.rightDataArray, 'right');
         
-        this.updateBar(this.leftBar, this.leftValue, leftLevel);
-        this.updateBar(this.rightBar, this.rightValue, rightLevel);
+        const leftFactor = leftLevel > this.leftSmooth ? this.attackFactor : this.decayFactor;
+        const rightFactor = rightLevel > this.rightSmooth ? this.attackFactor : this.decayFactor;
+        
+        this.leftSmooth = this.leftSmooth + (leftLevel - this.leftSmooth) * leftFactor;
+        this.rightSmooth = this.rightSmooth + (rightLevel - this.rightSmooth) * rightFactor;
+        
+        this.leftSmooth = this.applyExponentialFloor(this.leftSmooth);
+        this.rightSmooth = this.applyExponentialFloor(this.rightSmooth);
+        
+        this.updateBar(this.leftBar, this.leftValue, this.leftSmooth);
+        this.updateBar(this.rightBar, this.rightValue, this.rightSmooth);
         
         this.animationId = requestAnimationFrame(() => this.animate());
     }
@@ -132,29 +143,20 @@ class ChannelMeters extends HTMLElement {
         }
         
         percentage = Math.min(95, percentage);
-        
         percentage = Math.pow(percentage / 100, 0.6) * 100;
         
-        const history = channel === 'left' ? this.leftHistory : this.rightHistory;
-        history.push(percentage);
-        if (history.length > this.historySize) {
-            history.shift();
+        return Math.max(0, percentage);
+    }
+
+    applyExponentialFloor(level) {
+        if (level <= this.minLevel) {
+            return this.minLevel;
         }
         
-        if (history.length < 2) return percentage;
+        const floorStrength = 8;
+        const exponentialFloor = this.minLevel + (level - this.minLevel) * Math.pow(level / 100, 1 / floorStrength);
         
-        const recentAvg = history.slice(-2).reduce((a, b) => a + b) / 2;
-        
-        let currentWeight, historyWeight;
-        if (percentage > recentAvg) {
-            currentWeight = 0.4;
-            historyWeight = 0.6;
-        } else {
-            currentWeight = 0.6;
-            historyWeight = 0.4;
-        }
-        
-        return Math.max(0, percentage * currentWeight + recentAvg * historyWeight);
+        return Math.max(this.minLevel, exponentialFloor);
     }
 
     calibrateBaseline() {

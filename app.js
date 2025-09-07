@@ -2,16 +2,19 @@ class MusicVisualizerApp {
     constructor() {
         this.visualizer = document.getElementById('visualizer');
         this.channelMeters = document.getElementById('channelMeters');
-        this.startBtn = document.getElementById('startBtn');
         this.status = document.getElementById('status');
         this.isRunning = false;
         
         this.initEventListeners();
-        this.checkAutoStart();
+        this.attemptAutoStart();
     }
 
     initEventListeners() {
-        this.startBtn.addEventListener('click', () => this.toggleVisualizer());
+        document.addEventListener('click', () => {
+            if (!this.isRunning) {
+                this.startVisualizer();
+            }
+        }, { once: true });
         
         document.addEventListener('visibilitychange', () => {
             if (document.hidden && this.isRunning) {
@@ -26,18 +29,18 @@ class MusicVisualizerApp {
         });
     }
 
-    async toggleVisualizer() {
-        if (!this.isRunning) {
+    async attemptAutoStart() {
+        try {
             await this.startVisualizer();
-        } else {
-            this.stopVisualizer();
+        } catch (error) {
+            this.updateStatus('Click anywhere to start audio visualizer');
         }
     }
+
 
     async startVisualizer() {
         try {
             this.updateStatus('Requesting microphone access...');
-            this.startBtn.disabled = true;
             
             const success = await this.visualizer.initAudio();
             
@@ -58,16 +61,10 @@ class MusicVisualizerApp {
             this.channelMeters.start();
             this.isRunning = true;
             
-            this.startBtn.textContent = 'STOP AUDIO';
-            this.startBtn.classList.add('active');
-            this.startBtn.disabled = false;
             this.updateStatus('Audio visualizer active');
-            
-            this.setPermissionGranted(true);
             
         } catch (error) {
             console.error('Error starting visualizer:', error);
-            this.setPermissionGranted(false);
             this.handleError(error);
         }
     }
@@ -77,9 +74,6 @@ class MusicVisualizerApp {
         this.channelMeters.stop();
         this.isRunning = false;
         
-        this.startBtn.textContent = 'START AUDIO';
-        this.startBtn.classList.remove('active');
-        this.startBtn.disabled = false;
         this.updateStatus('Audio visualizer stopped');
     }
 
@@ -93,14 +87,10 @@ class MusicVisualizerApp {
     }
 
     handleError(error) {
-        this.startBtn.disabled = false;
-        this.startBtn.textContent = 'START AUDIO';
-        this.startBtn.classList.remove('active');
-        
         if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-            this.updateStatus('Microphone access denied. Please grant permission and try again.');
+            this.updateStatus('Microphone access denied. Please grant permission and refresh.');
         } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-            this.updateStatus('No microphone found. Please connect a microphone and try again.');
+            this.updateStatus('No microphone found. Please connect a microphone and refresh.');
         } else if (error.name === 'NotSupportedError') {
             this.updateStatus('Audio capture not supported in this browser.');
         } else {
@@ -108,50 +98,6 @@ class MusicVisualizerApp {
         }
     }
 
-    async checkAutoStart() {
-        try {
-            const hasPermission = this.getPermissionGranted();
-            if (!hasPermission) return;
-
-            const permissionStatus = await navigator.permissions.query({name: 'microphone'});
-            
-            if (permissionStatus.state === 'granted') {
-                this.updateStatus('Auto-starting with saved permission...');
-                setTimeout(() => this.startVisualizer(), 500);
-            } else {
-                this.setPermissionGranted(false);
-            }
-
-            permissionStatus.onchange = () => {
-                if (permissionStatus.state === 'denied' || permissionStatus.state === 'prompt') {
-                    this.setPermissionGranted(false);
-                    if (this.isRunning) {
-                        this.stopVisualizer();
-                        this.updateStatus('Microphone permission revoked');
-                    }
-                }
-            };
-        } catch (error) {
-            console.warn('Could not check microphone permissions:', error);
-        }
-    }
-
-    setPermissionGranted(granted) {
-        try {
-            localStorage.setItem('microphonePermissionGranted', granted.toString());
-        } catch (error) {
-            console.warn('Could not save permission status:', error);
-        }
-    }
-
-    getPermissionGranted() {
-        try {
-            return localStorage.getItem('microphonePermissionGranted') === 'true';
-        } catch (error) {
-            console.warn('Could not read permission status:', error);
-            return false;
-        }
-    }
 
 
     updateStatus(message) {
