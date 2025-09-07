@@ -3,11 +3,8 @@ class MusicVisualizerApp {
         this.visualizer = document.getElementById('visualizer');
         this.channelMeters = document.getElementById('channelMeters');
         this.startBtn = document.getElementById('startBtn');
-        this.calibrateBtn = document.getElementById('calibrateBtn');
         this.status = document.getElementById('status');
         this.isRunning = false;
-        this.isCalibrating = false;
-        this.calibrationCountdown = null;
         
         this.initEventListeners();
         this.checkAutoStart();
@@ -15,7 +12,6 @@ class MusicVisualizerApp {
 
     initEventListeners() {
         this.startBtn.addEventListener('click', () => this.toggleVisualizer());
-        this.calibrateBtn.addEventListener('click', () => this.toggleCalibration());
         
         document.addEventListener('visibilitychange', () => {
             if (document.hidden && this.isRunning) {
@@ -26,9 +22,6 @@ class MusicVisualizerApp {
         window.addEventListener('beforeunload', () => {
             if (this.isRunning) {
                 this.stopVisualizer();
-            }
-            if (this.isCalibrating) {
-                this.visualizer.stopManualCalibration();
             }
         });
     }
@@ -90,75 +83,6 @@ class MusicVisualizerApp {
         this.updateStatus('Audio visualizer stopped');
     }
 
-    async toggleCalibration() {
-        if (!this.isCalibrating) {
-            await this.startCalibration();
-        } else {
-            this.stopCalibration();
-        }
-    }
-
-    async startCalibration() {
-        if (this.isRunning) {
-            this.updateStatus('Stop audio visualizer before calibrating');
-            return;
-        }
-
-        try {
-            this.updateStatus('Starting noise calibration... Ensure no music is playing');
-            this.calibrateBtn.disabled = true;
-            
-            const success = await this.visualizer.startManualCalibration();
-            
-            if (!success) {
-                throw new Error('Failed to start calibration');
-            }
-            
-            this.isCalibrating = true;
-            this.calibrateBtn.textContent = 'STOP CALIBRATION';
-            this.calibrateBtn.classList.add('active');
-            this.calibrateBtn.disabled = false;
-            
-            this.startCalibrationCountdown(10);
-            
-        } catch (error) {
-            console.error('Error starting calibration:', error);
-            this.handleCalibrationError(error);
-        }
-    }
-
-    stopCalibration() {
-        this.visualizer.stopManualCalibration();
-        this.isCalibrating = false;
-        
-        if (this.calibrationCountdown) {
-            clearInterval(this.calibrationCountdown);
-            this.calibrationCountdown = null;
-        }
-        
-        this.calibrateBtn.textContent = 'CALIBRATE NOISE';
-        this.calibrateBtn.classList.remove('active');
-        this.calibrateBtn.disabled = false;
-        this.updateStatus('Noise calibration complete. Profile saved.');
-    }
-
-    handleCalibrationError(error) {
-        this.calibrateBtn.disabled = false;
-        this.calibrateBtn.textContent = 'CALIBRATE NOISE';
-        this.calibrateBtn.classList.remove('active');
-        this.isCalibrating = false;
-        
-        if (this.calibrationCountdown) {
-            clearInterval(this.calibrationCountdown);
-            this.calibrationCountdown = null;
-        }
-        
-        if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-            this.updateStatus('Microphone access denied for calibration');
-        } else {
-            this.updateStatus('Error during calibration. Check console for details.');
-        }
-    }
 
     pauseVisualizer() {
         if (this.isRunning) {
@@ -229,27 +153,6 @@ class MusicVisualizerApp {
         }
     }
 
-    startCalibrationCountdown(seconds) {
-        let remaining = seconds;
-        this.updateStatus(`Recording background noise... ${remaining} seconds remaining`);
-        
-        this.calibrationCountdown = setInterval(() => {
-            remaining--;
-            if (remaining > 0) {
-                this.updateStatus(`Recording background noise... ${remaining} seconds remaining`);
-            } else {
-                this.updateStatus('Processing calibration data...');
-                clearInterval(this.calibrationCountdown);
-                this.calibrationCountdown = null;
-                
-                setTimeout(() => {
-                    if (this.isCalibrating) {
-                        this.stopCalibration();
-                    }
-                }, 500);
-            }
-        }, 1000);
-    }
 
     updateStatus(message) {
         this.status.textContent = message;
