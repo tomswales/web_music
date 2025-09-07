@@ -268,9 +268,29 @@ class AudioVisualizer extends HTMLElement {
     }
 
     processAudioLevel(rawLevel) {
-        let barHeight = (rawLevel / 255) * 100;
+        // Apply sigmoid scaling for better noise handling and musical sensitivity
+        return this.applySigmoidScaling(rawLevel);
+    }
+
+    applySigmoidScaling(rawLevel) {
+        // Sigmoid parameters optimized for laptop recording with extreme high-end compression
+        const noiseFloor = 40;      // Higher threshold to suppress laptop fan noise
+        const midpoint = 55;        // Very low midpoint for early compression
+        const steepness = 0.03;     // Extremely gentle curve for maximum tail-off
+        const maxHeight = 100;      // Maximum bar height
         
-        return Math.max(1, Math.min(100, barHeight));
+        // Apply noise floor - values below this get heavily suppressed
+        const noiseAdjustedInput = Math.max(0, (rawLevel - noiseFloor) / (255 - noiseFloor));
+        
+        // Sigmoid function: 1 / (1 + e^(-steepness * (input - midpoint)))
+        const sigmoidInput = (noiseAdjustedInput * 255 - midpoint) * steepness;
+        const sigmoidOutput = 1 / (1 + Math.exp(-sigmoidInput));
+        
+        // Scale to desired output range and ensure minimum visibility for any signal
+        const scaledHeight = sigmoidOutput * maxHeight;
+        const finalHeight = rawLevel > noiseFloor ? scaledHeight : (rawLevel / noiseFloor) * 5;
+        
+        return Math.max(1, Math.min(100, finalHeight));
     }
 
 
