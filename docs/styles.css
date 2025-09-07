@@ -299,18 +299,18 @@ body.fullscreen-mode footer .info {
 
 body.fullscreen-mode .container {
     height: 100vh;
-    padding: 0;
+    padding: 20px;
     justify-content: center;
 }
 
 body.fullscreen-mode main {
     flex: 1;
     padding: 0;
-    gap: 0;
+    gap: 20px;
 }
 
 body.fullscreen-mode audio-visualizer {
-    height: 70vh;
+    height: 85vh;
     border: none;
     border-radius: 0;
     background: transparent;
@@ -318,7 +318,7 @@ body.fullscreen-mode audio-visualizer {
 }
 
 body.fullscreen-mode channel-meters {
-    height: 30vh;
+    height: 15vh;
     border: none;
     border-radius: 0;
     background: transparent;

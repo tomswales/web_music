@@ -28,6 +28,8 @@ class MusicVisualizerApp {
         document.addEventListener('visibilitychange', () => {
             if (document.hidden && this.isRunning) {
                 this.pauseVisualizer();
+            } else if (!document.hidden && this.isRunning) {
+                this.resumeVisualizer();
             }
         });
         
@@ -101,6 +103,14 @@ class MusicVisualizerApp {
             this.visualizer.stop();
             this.channelMeters.stop();
             this.updateStatus('Audio visualizer paused (tab hidden)');
+        }
+    }
+
+    resumeVisualizer() {
+        if (this.isRunning) {
+            this.visualizer.start();
+            this.channelMeters.start();
+            this.updateStatus('Audio visualizer active');
         }
     }
 

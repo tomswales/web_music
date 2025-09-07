@@ -17,6 +17,7 @@ class AudioVisualizer extends HTMLElement {
         this.smoothingFactor = 0.3;
         this.spectrumHistory = [];
         this.maxHistoryLayers = 10;
+        this.fullscreenHistoryLayers = 15;
     }
 
     connectedCallback() {
@@ -150,7 +151,11 @@ class AudioVisualizer extends HTMLElement {
 
     updateSpectrumHistory() {
         this.spectrumHistory.unshift([...this.barSmoothValues]);
-        if (this.spectrumHistory.length > this.maxHistoryLayers) {
+        const maxLayers = document.body.classList.contains('fullscreen-mode') 
+            ? this.fullscreenHistoryLayers 
+            : this.maxHistoryLayers;
+        
+        if (this.spectrumHistory.length > maxLayers) {
             this.spectrumHistory.pop();
         }
     }
@@ -160,7 +165,10 @@ class AudioVisualizer extends HTMLElement {
             const spectrum = this.spectrumHistory[layer];
             if (!spectrum) continue;
             
-            const opacity = 1 - (layer / this.maxHistoryLayers);
+            const maxLayers = document.body.classList.contains('fullscreen-mode') 
+                ? this.fullscreenHistoryLayers 
+                : this.maxHistoryLayers;
+            const opacity = 1 - (layer / maxLayers);
             const depth = layer * this.depthSpacing;
             const scale = 1 - (layer * 0.05);
             
