@@ -193,11 +193,11 @@ class AudioVisualizer extends HTMLElement {
             const depth = layer * this.depthSpacing;
             const scale = 1 - (layer * 0.05);
             
-            this.drawSpectrumLayer(spectrum, depth, opacity, scale, layer === 0);
+            this.drawSpectrumLayer(spectrum, depth, opacity, scale, layer === 0, layer);
         }
     }
 
-    drawSpectrumLayer(spectrum, depth, opacity, scale, isFrontLayer) {
+    drawSpectrumLayer(spectrum, depth, opacity, scale, isFrontLayer, layer) {
         const barWidth = this.baseBarWidth * scale;
         const barSpacing = this.baseBarSpacing * scale;
         const marginWidth = this.marginWidth * scale;
@@ -216,16 +216,30 @@ class AudioVisualizer extends HTMLElement {
                 alpha = Math.min(1, opacity + 0.3);
             }
             
-            this.ctx.fillStyle = `rgba(0, 255, 65, ${alpha})`;
+            // Calculate color gradient from neon green (front) to neon blue (back)
+            const maxLayers = document.body.classList.contains('fullscreen-mode') 
+                ? this.fullscreenHistoryLayers 
+                : this.maxHistoryLayers;
+            const layerProgress = layer / (maxLayers - 1); // 0 = front, 1 = back
+            
+            // Neon green: (0, 255, 65) -> Neon blue: (0, 65, 255)
+            const red = 0;
+            const green = Math.round(255 - (190 * layerProgress)); // 255 -> 65
+            const blue = Math.round(65 + (190 * layerProgress));   // 65 -> 255
+            
+            this.ctx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${alpha})`;
             this.ctx.fillRect(x, y, barWidth, barHeight);
             
+            // Update shadow colors to match the gradient
+            const shadowColor = `rgb(${red}, ${green}, ${blue})`;
+            
             if (isFrontLayer && heightPercent > 70) {
-                this.ctx.shadowColor = '#00ff41';
+                this.ctx.shadowColor = shadowColor;
                 this.ctx.shadowBlur = 12 * opacity;
                 this.ctx.fillRect(x, y, barWidth, barHeight);
                 this.ctx.shadowBlur = 0;
             } else if (isFrontLayer && heightPercent > 40) {
-                this.ctx.shadowColor = '#00ff41';
+                this.ctx.shadowColor = shadowColor;
                 this.ctx.shadowBlur = 6 * opacity;
                 this.ctx.fillRect(x, y, barWidth, barHeight);
                 this.ctx.shadowBlur = 0;
