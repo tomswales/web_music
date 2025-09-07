@@ -23,6 +23,10 @@ class AudioVisualizer extends HTMLElement {
         this.maxParticles = 200;
         this.peakThreshold = 15;
         this.rollingAverages = new Array(64).fill(0);
+        this.musicEnergy = 0;
+        this.bassEnergy = 0;
+        this.midEnergy = 0;
+        this.trebleEnergy = 0;
     }
 
     connectedCallback() {
@@ -104,6 +108,10 @@ class AudioVisualizer extends HTMLElement {
         this.spectrumHistory = [];
         this.particles = [];
         this.rollingAverages.fill(0);
+        this.musicEnergy = 0;
+        this.bassEnergy = 0;
+        this.midEnergy = 0;
+        this.trebleEnergy = 0;
         this.clearCanvas();
     }
 
@@ -153,6 +161,7 @@ class AudioVisualizer extends HTMLElement {
             this.detectFrequencyPeaks(i, barHeight, displayHeight);
         }
         
+        this.calculateMusicEnergy();
         this.updateSpectrumHistory();
         this.updateParticles();
         this.draw3DSpectrum();
@@ -385,6 +394,31 @@ class AudioVisualizer extends HTMLElement {
             this.ctx.restore();
         }
     }
+
+    calculateMusicEnergy() {
+        this.bassEnergy = 0;
+        this.midEnergy = 0;
+        this.trebleEnergy = 0;
+        
+        const bassRange = Math.floor(this.barCount * 0.2);
+        const midRange = Math.floor(this.barCount * 0.6);
+        
+        for (let i = 0; i < bassRange; i++) {
+            this.bassEnergy += this.barSmoothValues[i];
+        }
+        for (let i = bassRange; i < midRange; i++) {
+            this.midEnergy += this.barSmoothValues[i];
+        }
+        for (let i = midRange; i < this.barCount; i++) {
+            this.trebleEnergy += this.barSmoothValues[i];
+        }
+        
+        this.bassEnergy /= bassRange;
+        this.midEnergy /= (midRange - bassRange);
+        this.trebleEnergy /= (this.barCount - midRange);
+        this.musicEnergy = (this.bassEnergy + this.midEnergy + this.trebleEnergy) / 3;
+    }
+
 }
 
 customElements.define('audio-visualizer', AudioVisualizer);
