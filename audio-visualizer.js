@@ -126,15 +126,20 @@ class AudioVisualizer extends HTMLElement {
         
         for (let i = 0; i < this.barCount; i++) {
             let sum = 0;
+            let noiseSum = 0;
             const startIndex = i * barWidth;
             const endIndex = Math.min(startIndex + barWidth, usableRange);
             
             for (let j = startIndex; j < endIndex; j++) {
                 sum += this.dataArray[j];
+                if (this.backgroundNoise && j < this.backgroundNoise.length) {
+                    noiseSum += this.backgroundNoise[j];
+                }
             }
             
             const average = sum / (endIndex - startIndex);
-            let barHeight = this.processAudioLevel(average);
+            const noiseAverage = noiseSum / (endIndex - startIndex);
+            let barHeight = this.processAudioLevel(average, noiseAverage);
             
             if (!this.manualCalibrationActive) {
                 this.barSmoothValues[i] = this.barSmoothValues[i] + (barHeight - this.barSmoothValues[i]) * this.smoothingFactor;
@@ -212,8 +217,9 @@ class AudioVisualizer extends HTMLElement {
         };
     }
 
-    processAudioLevel(rawLevel) {
-        let barHeight = (rawLevel / 255) * 100;
+    processAudioLevel(rawLevel, noiseLevel = 0) {
+        const cleanedLevel = Math.max(0, rawLevel - noiseLevel - this.noiseMargin);
+        let barHeight = (cleanedLevel / 255) * 100;
         
         return Math.max(1, Math.min(100, barHeight));
     }
