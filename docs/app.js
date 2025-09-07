@@ -159,6 +159,7 @@ class MusicVisualizerApp {
         this.backgroundCanvas.style.height = '100vh';
         this.backgroundCanvas.style.zIndex = '-1';
         this.backgroundCanvas.style.pointerEvents = 'none';
+        this.backgroundCanvas.style.backgroundColor = 'rgb(5, 5, 5)';
         
         document.body.insertBefore(this.backgroundCanvas, document.body.firstChild);
         
@@ -210,6 +211,7 @@ class PsychedelicBackground {
         this.canvas = canvas;
         this.ctx = ctx;
         this.time = 0;
+        this.triangleSegments = [];
     }
 
     render(musicData) {
@@ -217,8 +219,9 @@ class PsychedelicBackground {
         const { musicEnergy, bassEnergy, midEnergy, trebleEnergy } = musicData;
         const totalEnergy = musicEnergy + bassEnergy + midEnergy + trebleEnergy;
         
-        // Clear canvas
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        // Make background always black for now to debug visibility
+        this.ctx.fillStyle = 'rgb(0, 0, 0)';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
         // Always show a basic pattern, even without audio
         // Skip complex rendering if no significant audio
@@ -226,97 +229,235 @@ class PsychedelicBackground {
         //     return;
         // }
         
-        this.time += 0.02 + (musicEnergy / 3000);
+        this.time += 0.005 + (musicEnergy / 8000);
         
         this.ctx.save();
-        // Make it more visible for testing
-        this.ctx.globalAlpha = Math.max(0.8, 0.5 + (musicEnergy / 1000));
+        // Temporarily high alpha for debugging visibility
+        this.ctx.globalAlpha = Math.max(0.8, 0.6 + (musicEnergy / 500));
         
         const centerX = this.canvas.width / 2;
         const centerY = this.canvas.height / 2;
         
-        // Reduce to 2 layers for performance
-        for (let layer = 0; layer < 2; layer++) {
-            this.drawSymmetricLayer(centerX, centerY, layer, musicData);
-        }
+        // Draw giant static Sierpinski with beat-reactive waves
+        this.drawGiantSierpinskiWithWaves(centerX, centerY, musicData);
         
         this.ctx.restore();
     }
 
-    drawSymmetricLayer(centerX, centerY, layer, musicData) {
+    drawFractalTree(centerX, centerY, musicData) {
         const { bassEnergy, midEnergy, trebleEnergy, musicEnergy } = musicData;
-        const layerOffset = layer * 0.3;
-        const time = this.time + layerOffset;
-        const energy = musicEnergy / 100;
+        const maxDepth = 8;
+        const baseLength = Math.min(this.canvas.width, this.canvas.height) * 0.1;
+        const angle = this.time * 0.3 + (bassEnergy / 100);
         
-        // Simplify and reduce symmetry points for performance
-        const symmetryPoints = Math.min(12, 6 + Math.floor(bassEnergy / 20));
-        const radius = Math.min(this.canvas.width, this.canvas.height) * (0.2 + layer * 0.15);
+        this.ctx.strokeStyle = this.getPsychedelicColor(0, this.time, musicData);
+        this.ctx.lineWidth = 1 + (musicEnergy / 200);
         
-        this.ctx.strokeStyle = this.getPsychedelicColor(layer, time, musicData);
-        this.ctx.lineWidth = 0.5 + energy;
-        
-        this.ctx.beginPath();
-        
-        for (let i = 0; i < symmetryPoints; i++) {
-            const angle = (i / symmetryPoints) * Math.PI * 2;
-            const nextAngle = ((i + 1) / symmetryPoints) * Math.PI * 2;
-            
-            // Create flowing, organic shapes
-            const r1 = radius + Math.sin(time * 2 + angle * 3) * (20 + midEnergy / 5);
-            const r2 = radius + Math.sin(time * 1.5 + nextAngle * 4) * (25 + trebleEnergy / 4);
-            
-            const x1 = centerX + Math.cos(angle + time * 0.5) * r1;
-            const y1 = centerY + Math.sin(angle + time * 0.5) * r1;
-            
-            if (i === 0) {
-                this.ctx.moveTo(x1, y1);
-            } else {
-                // Create curved connections
-                const cpx = centerX + Math.cos(angle + time * 0.2) * (radius * 0.7);
-                const cpy = centerY + Math.sin(angle + time * 0.2) * (radius * 0.7);
-                this.ctx.quadraticCurveTo(cpx, cpy, x1, y1);
-            }
+        // Draw multiple trees from different points
+        for (let i = 0; i < 6; i++) {
+            const treeX = centerX + Math.cos(i * Math.PI / 3) * (centerX * 0.6);
+            const treeY = centerY + Math.sin(i * Math.PI / 3) * (centerY * 0.6);
+            this.drawTreeBranch(treeX, treeY, baseLength, angle + i * 0.5, maxDepth, musicData);
         }
-        
-        this.ctx.closePath();
-        this.ctx.stroke();
-        
-        // Add inner mandala patterns
-        this.drawMandalaPattern(centerX, centerY, radius * 0.5, time + layerOffset, layer, musicData);
     }
 
-    drawMandalaPattern(centerX, centerY, radius, time, layer, musicData) {
-        const { bassEnergy, trebleEnergy, musicEnergy } = musicData;
-        const petals = Math.min(8, 4 + Math.floor(bassEnergy / 25)); // Reduce petal count
-        const energy = musicEnergy / 200;
+    drawTreeBranch(x, y, length, angle, depth, musicData) {
+        if (depth <= 0 || length < 1) return;
         
-        this.ctx.strokeStyle = this.getPsychedelicColor(layer + 1, time * 1.5, musicData);
-        this.ctx.lineWidth = 0.5 + energy;
+        const { midEnergy, trebleEnergy } = musicData;
+        const endX = x + Math.cos(angle) * length;
+        const endY = y + Math.sin(angle) * length;
         
-        for (let i = 0; i < petals; i++) {
-            const angle = (i / petals) * Math.PI * 2;
-            const petalRadius = radius * (0.4 + Math.sin(time + angle * 2) * 0.15);
+        this.ctx.beginPath();
+        this.ctx.moveTo(x, y);
+        this.ctx.lineTo(endX, endY);
+        this.ctx.stroke();
+        
+        // Recursive branching with music influence
+        const branchAngle1 = angle + 0.5 + (trebleEnergy / 200);
+        const branchAngle2 = angle - 0.5 - (midEnergy / 200);
+        const newLength = length * (0.7 + Math.sin(this.time + depth) * 0.1);
+        
+        this.drawTreeBranch(endX, endY, newLength, branchAngle1, depth - 1, musicData);
+        this.drawTreeBranch(endX, endY, newLength, branchAngle2, depth - 1, musicData);
+    }
+
+    drawGiantSierpinskiWithWaves(centerX, centerY, musicData) {
+        const { bassEnergy, midEnergy, trebleEnergy, musicEnergy } = musicData;
+        
+        // Giant triangle with smooth cyclical size changes only
+        const baseSize = Math.max(this.canvas.width, this.canvas.height) * 1.6;
+        const smoothPulsation = Math.sin(this.time * 0.5) * 0.1; // Gentle size cycling
+        const pulsation = 1 + smoothPulsation;
+        const size = baseSize * pulsation;
+        const maxDepth = 10;
+        
+        // Store all line segments for wave animation
+        this.triangleSegments = [];
+        
+        // Position triangle higher to cover top half - move up by 45% of screen height
+        const adjustedCenterY = centerY - (this.canvas.height * 0.45);
+        
+        // Draw the structure with pulsation and smooth rotation
+        const rotationAngle = this.time * 0.02; // Very slow rotation
+        this.buildSierpinskiSegmentsRotated(centerX, adjustedCenterY, size, maxDepth, rotationAngle);
+        
+        // Now draw with extreme beat-reactive colors and waves
+        const beatStrength = Math.max(0.4, (bassEnergy + midEnergy * 0.8) / 60);
+        const fastWaveSpeed = this.time * 4;
+        const slowWaveSpeed = this.time * 1.5;
+        
+        for (let i = 0; i < this.triangleSegments.length; i++) {
+            const segment = this.triangleSegments[i];
             
-            this.ctx.beginPath();
+            // Calculate distance from adjusted center for wave effect
+            const midX = (segment.x1 + segment.x2) / 2;
+            const midY = (segment.y1 + segment.y2) / 2;
+            const distanceFromCenter = Math.sqrt((midX - centerX) ** 2 + (midY - adjustedCenterY) ** 2);
             
-            // Simplified petal shapes with fewer points
-            for (let j = 0; j <= 10; j++) { // Reduce from 20 to 10 points
-                const t = j / 10;
-                const petalAngle = angle + (t - 0.5) * Math.PI * 0.3;
-                const r = petalRadius * Math.sin(t * Math.PI) * (1 + trebleEnergy / 150);
-                
-                const x = centerX + Math.cos(petalAngle) * r;
-                const y = centerY + Math.sin(petalAngle) * r;
-                
-                if (j === 0) {
-                    this.ctx.moveTo(x, y);
-                } else {
-                    this.ctx.lineTo(x, y);
-                }
+            // Multiple overlapping wave patterns for extreme movement
+            const fastWave = distanceFromCenter * 0.02 - fastWaveSpeed;
+            const slowWave = distanceFromCenter * 0.008 - slowWaveSpeed;
+            const spiralWave = Math.atan2(midY - adjustedCenterY, midX - centerX) * 2 + this.time * 3;
+            
+            // Combine multiple wave types for extreme cycling
+            const wave1 = (Math.sin(fastWave) + 1) * 0.5;
+            const wave2 = (Math.sin(slowWave) + 1) * 0.5;
+            const wave3 = (Math.sin(spiralWave) + 1) * 0.5;
+            const combinedWave = (wave1 + wave2 + wave3) / 3;
+            
+            const waveIntensity = Math.max(0.1, combinedWave * beatStrength);
+            
+            // Extreme color cycling based on multiple frequency bands and waves
+            let colorLayer = 0;
+            const colorCycle = (this.time * 2 + distanceFromCenter * 0.01) % (Math.PI * 2);
+            
+            if (bassEnergy > 15 && wave1 > 0.6) colorLayer = 0; // Bass wave = purple/magenta
+            else if (midEnergy > 15 && wave2 > 0.5) colorLayer = 1; // Mid wave = teal/blue
+            else if (trebleEnergy > 15 && wave3 > 0.4) colorLayer = 2; // Treble wave = green/yellow
+            else {
+                // Cycling through colors when no dominant frequency
+                if (colorCycle < Math.PI * 2/3) colorLayer = 0;
+                else if (colorCycle < Math.PI * 4/3) colorLayer = 1;
+                else colorLayer = 2;
             }
             
+            // Very subtle patterns to avoid clashing with visualizations
+            const alpha = Math.max(0.05, Math.min(0.3, waveIntensity * 0.8));
+            this.ctx.globalAlpha = alpha;
+            this.ctx.strokeStyle = this.getPsychedelicColor(colorLayer, this.time * 2 + distanceFromCenter * 0.01, musicData);
+            this.ctx.lineWidth = 0.4 + waveIntensity * 3 + (beatStrength * 2);
+            
+            // Draw the segment
+            this.ctx.beginPath();
+            this.ctx.moveTo(segment.x1, segment.y1);
+            this.ctx.lineTo(segment.x2, segment.y2);
             this.ctx.stroke();
+        }
+    }
+
+    buildSierpinskiSegments(x, y, size, depth) {
+        if (depth <= 0) return;
+        
+        const height = size * Math.sqrt(3) / 2;
+        
+        // Triangle vertices (static, no rotation)
+        const x1 = x - size / 2;
+        const y1 = y + height / 2;
+        const x2 = x + size / 2;
+        const y2 = y + height / 2;
+        const x3 = x;
+        const y3 = y - height / 2;
+        
+        if (depth === 1) {
+            // Store the three edges as line segments
+            this.triangleSegments.push({x1: x1, y1: y1, x2: x2, y2: y2}); // bottom edge
+            this.triangleSegments.push({x1: x2, y1: y2, x2: x3, y2: y3}); // right edge
+            this.triangleSegments.push({x1: x3, y1: y3, x2: x1, y2: y1}); // left edge
+        } else {
+            // Recursive subdivision
+            this.buildSierpinskiSegments((x1 + x3) / 2, (y1 + y3) / 2, size / 2, depth - 1);
+            this.buildSierpinskiSegments((x2 + x3) / 2, (y2 + y3) / 2, size / 2, depth - 1);
+            this.buildSierpinskiSegments((x1 + x2) / 2, (y1 + y2) / 2, size / 2, depth - 1);
+        }
+    }
+
+    buildSierpinskiSegmentsRotated(x, y, size, depth, rotation = 0) {
+        if (depth <= 0) return;
+        
+        const height = size * Math.sqrt(3) / 2;
+        
+        // Triangle vertices before rotation
+        const x1_base = x - size / 2;
+        const y1_base = y + height / 2;
+        const x2_base = x + size / 2;
+        const y2_base = y + height / 2;
+        const x3_base = x;
+        const y3_base = y - height / 2;
+        
+        // Apply rotation around center point (x, y)
+        const cos_r = Math.cos(rotation);
+        const sin_r = Math.sin(rotation);
+        
+        const x1 = x + (x1_base - x) * cos_r - (y1_base - y) * sin_r;
+        const y1 = y + (x1_base - x) * sin_r + (y1_base - y) * cos_r;
+        const x2 = x + (x2_base - x) * cos_r - (y2_base - y) * sin_r;
+        const y2 = y + (x2_base - x) * sin_r + (y2_base - y) * cos_r;
+        const x3 = x + (x3_base - x) * cos_r - (y3_base - y) * sin_r;
+        const y3 = y + (x3_base - x) * sin_r + (y3_base - y) * cos_r;
+        
+        if (depth === 1) {
+            // Store the three edges as line segments
+            this.triangleSegments.push({x1: x1, y1: y1, x2: x2, y2: y2}); // bottom edge
+            this.triangleSegments.push({x1: x2, y1: y2, x2: x3, y2: y3}); // right edge
+            this.triangleSegments.push({x1: x3, y1: y3, x2: x1, y2: y1}); // left edge
+        } else {
+            // Recursive subdivision with rotation
+            this.buildSierpinskiSegmentsRotated((x1 + x3) / 2, (y1 + y3) / 2, size / 2, depth - 1, rotation);
+            this.buildSierpinskiSegmentsRotated((x2 + x3) / 2, (y2 + y3) / 2, size / 2, depth - 1, rotation);
+            this.buildSierpinskiSegmentsRotated((x1 + x2) / 2, (y1 + y2) / 2, size / 2, depth - 1, rotation);
+        }
+    }
+
+    drawJuliaSetVariation(centerX, centerY, musicData) {
+        const { bassEnergy, midEnergy, trebleEnergy } = musicData;
+        const maxIter = 20;
+        const zoom = 100 + (bassEnergy * 2);
+        
+        this.ctx.strokeStyle = this.getPsychedelicColor(2, this.time * 0.8, musicData);
+        this.ctx.lineWidth = 0.5;
+        
+        // Julia set parameters that change with music
+        const cx = -0.7 + Math.sin(this.time * 0.1) * 0.3 + (midEnergy / 1000);
+        const cy = 0.27 + Math.cos(this.time * 0.15) * 0.3 + (trebleEnergy / 1000);
+        
+        // Sample points in a grid pattern
+        const step = 8; // Larger step for performance
+        for (let px = -this.canvas.width / 2; px < this.canvas.width / 2; px += step) {
+            for (let py = -this.canvas.height / 2; py < this.canvas.height / 2; py += step) {
+                const x0 = px / zoom;
+                const y0 = py / zoom;
+                
+                let x = x0, y = y0;
+                let iter = 0;
+                
+                while (x * x + y * y <= 4 && iter < maxIter) {
+                    const xtemp = x * x - y * y + cx;
+                    y = 2 * x * y + cy;
+                    x = xtemp;
+                    iter++;
+                }
+                
+                // Only draw boundary points for subtle effect
+                if (iter > 5 && iter < maxIter - 2) {
+                    const plotX = centerX + px;
+                    const plotY = centerY + py;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.arc(plotX, plotY, 1.2, 0, Math.PI * 2);
+                    this.ctx.stroke();
+                }
+            }
         }
     }
 
@@ -350,10 +491,10 @@ class PsychedelicBackground {
                 break;
         }
         
-        // Make colors very bright for testing visibility
-        r = Math.min(255, Math.max(100, r * 2));
-        g = Math.min(255, Math.max(100, g * 2));
-        b = Math.min(255, Math.max(100, b * 2));
+        // Temporarily bright colors for debugging visibility
+        r = Math.min(200, Math.max(100, r * 3));
+        g = Math.min(200, Math.max(100, g * 3));
+        b = Math.min(200, Math.max(100, b * 3));
         
         return `rgb(${r}, ${g}, ${b})`;
     }
