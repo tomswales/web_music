@@ -86,6 +86,11 @@ class MusicVisualizerApp {
         this.channelMeters.stop();
         this.isRunning = false;
         
+        if (this.backgroundAnimationId) {
+            cancelAnimationFrame(this.backgroundAnimationId);
+            this.backgroundAnimationId = null;
+        }
+        
         this.updateStatus('Audio visualizer stopped');
     }
 
@@ -184,12 +189,19 @@ class MusicVisualizerApp {
     }
 
     startBackgroundAnimation() {
-        const animateBackground = () => {
-            const musicData = this.getVisualizerData();
-            this.backgroundRenderer.render(musicData);
-            requestAnimationFrame(animateBackground);
+        let lastTime = 0;
+        const targetFPS = 30; // Limit to 30 FPS for performance
+        const frameInterval = 1000 / targetFPS;
+        
+        const animateBackground = (currentTime) => {
+            if (currentTime - lastTime >= frameInterval) {
+                const musicData = this.getVisualizerData();
+                this.backgroundRenderer.render(musicData);
+                lastTime = currentTime;
+            }
+            this.backgroundAnimationId = requestAnimationFrame(animateBackground);
         };
-        animateBackground();
+        this.backgroundAnimationId = requestAnimationFrame(animateBackground);
     }
 }
 
@@ -201,19 +213,30 @@ class PsychedelicBackground {
     }
 
     render(musicData) {
+        // Always render something for debugging visibility
+        const { musicEnergy, bassEnergy, midEnergy, trebleEnergy } = musicData;
+        const totalEnergy = musicEnergy + bassEnergy + midEnergy + trebleEnergy;
+        
+        // Clear canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        const { musicEnergy, bassEnergy, midEnergy, trebleEnergy } = musicData;
-        this.time += 0.01 + (musicEnergy / 5000);
+        // Always show a basic pattern, even without audio
+        // Skip complex rendering if no significant audio
+        // if (totalEnergy < 5) {
+        //     return;
+        // }
+        
+        this.time += 0.02 + (musicEnergy / 3000);
         
         this.ctx.save();
-        this.ctx.globalAlpha = 0.05 + (musicEnergy / 2000);
+        // Make it more visible for testing
+        this.ctx.globalAlpha = Math.max(0.8, 0.5 + (musicEnergy / 1000));
         
         const centerX = this.canvas.width / 2;
         const centerY = this.canvas.height / 2;
         
-        // Draw multiple symmetric layers
-        for (let layer = 0; layer < 3; layer++) {
+        // Reduce to 2 layers for performance
+        for (let layer = 0; layer < 2; layer++) {
             this.drawSymmetricLayer(centerX, centerY, layer, musicData);
         }
         
@@ -226,9 +249,9 @@ class PsychedelicBackground {
         const time = this.time + layerOffset;
         const energy = musicEnergy / 100;
         
-        // Create radial symmetry points
-        const symmetryPoints = 8 + Math.floor(bassEnergy / 10);
-        const radius = Math.min(this.canvas.width, this.canvas.height) * (0.3 + layer * 0.2);
+        // Simplify and reduce symmetry points for performance
+        const symmetryPoints = Math.min(12, 6 + Math.floor(bassEnergy / 20));
+        const radius = Math.min(this.canvas.width, this.canvas.height) * (0.2 + layer * 0.15);
         
         this.ctx.strokeStyle = this.getPsychedelicColor(layer, time, musicData);
         this.ctx.lineWidth = 0.5 + energy;
@@ -265,23 +288,23 @@ class PsychedelicBackground {
 
     drawMandalaPattern(centerX, centerY, radius, time, layer, musicData) {
         const { bassEnergy, trebleEnergy, musicEnergy } = musicData;
-        const petals = 6 + Math.floor(bassEnergy / 15);
+        const petals = Math.min(8, 4 + Math.floor(bassEnergy / 25)); // Reduce petal count
         const energy = musicEnergy / 200;
         
         this.ctx.strokeStyle = this.getPsychedelicColor(layer + 1, time * 1.5, musicData);
-        this.ctx.lineWidth = 0.3 + energy;
+        this.ctx.lineWidth = 0.5 + energy;
         
         for (let i = 0; i < petals; i++) {
             const angle = (i / petals) * Math.PI * 2;
-            const petalRadius = radius * (0.3 + Math.sin(time + angle * 2) * 0.2);
+            const petalRadius = radius * (0.4 + Math.sin(time + angle * 2) * 0.15);
             
             this.ctx.beginPath();
             
-            // Create petal shapes
-            for (let j = 0; j <= 20; j++) {
-                const t = j / 20;
-                const petalAngle = angle + (t - 0.5) * Math.PI * 0.4;
-                const r = petalRadius * Math.sin(t * Math.PI) * (1 + trebleEnergy / 100);
+            // Simplified petal shapes with fewer points
+            for (let j = 0; j <= 10; j++) { // Reduce from 20 to 10 points
+                const t = j / 10;
+                const petalAngle = angle + (t - 0.5) * Math.PI * 0.3;
+                const r = petalRadius * Math.sin(t * Math.PI) * (1 + trebleEnergy / 150);
                 
                 const x = centerX + Math.cos(petalAngle) * r;
                 const y = centerY + Math.sin(petalAngle) * r;
@@ -303,34 +326,34 @@ class PsychedelicBackground {
         const midInfluence = midEnergy / 100;
         const trebleInfluence = trebleEnergy / 100;
         
-        // Dark, muted color palette
+        // More visible but still muted color palette
         let r, g, b;
         
         switch (layer % 3) {
             case 0:
-                // Deep purple/magenta
-                r = Math.floor(20 + Math.sin(time) * 15 + bassInfluence * 10);
-                g = Math.floor(5 + Math.sin(time * 1.3) * 8 + midInfluence * 5);
-                b = Math.floor(25 + Math.sin(time * 0.8) * 20 + trebleInfluence * 15);
+                // Deep purple/magenta - more visible
+                r = Math.floor(40 + Math.sin(time) * 20 + bassInfluence * 15);
+                g = Math.floor(10 + Math.sin(time * 1.3) * 15 + midInfluence * 10);
+                b = Math.floor(50 + Math.sin(time * 0.8) * 25 + trebleInfluence * 20);
                 break;
             case 1:
-                // Dark teal/blue
-                r = Math.floor(5 + Math.sin(time * 1.1) * 10 + midInfluence * 8);
-                g = Math.floor(15 + Math.sin(time * 0.9) * 12 + trebleInfluence * 10);
-                b = Math.floor(30 + Math.sin(time * 1.4) * 18 + bassInfluence * 12);
+                // Dark teal/blue - more visible
+                r = Math.floor(10 + Math.sin(time * 1.1) * 15 + midInfluence * 12);
+                g = Math.floor(30 + Math.sin(time * 0.9) * 20 + trebleInfluence * 15);
+                b = Math.floor(60 + Math.sin(time * 1.4) * 25 + bassInfluence * 18);
                 break;
             default:
-                // Dark green/yellow
-                r = Math.floor(10 + Math.sin(time * 0.7) * 8 + trebleInfluence * 6);
-                g = Math.floor(20 + Math.sin(time * 1.2) * 15 + bassInfluence * 10);
-                b = Math.floor(8 + Math.sin(time * 1.6) * 6 + midInfluence * 8);
+                // Dark green/yellow - more visible
+                r = Math.floor(20 + Math.sin(time * 0.7) * 15 + trebleInfluence * 10);
+                g = Math.floor(40 + Math.sin(time * 1.2) * 20 + bassInfluence * 15);
+                b = Math.floor(15 + Math.sin(time * 1.6) * 10 + midInfluence * 12);
                 break;
         }
         
-        // Keep colors muted and dark
-        r = Math.min(60, Math.max(5, r));
-        g = Math.min(60, Math.max(5, g));
-        b = Math.min(60, Math.max(5, b));
+        // Make colors very bright for testing visibility
+        r = Math.min(255, Math.max(100, r * 2));
+        g = Math.min(255, Math.max(100, g * 2));
+        b = Math.min(255, Math.max(100, b * 2));
         
         return `rgb(${r}, ${g}, ${b})`;
     }
