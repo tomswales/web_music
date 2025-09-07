@@ -13,6 +13,8 @@ class AudioVisualizer extends HTMLElement {
         this.peakHoldTime = 200;
         this.barPeaks = new Array(64).fill(0);
         this.barPeakTimes = new Array(64).fill(0);
+        this.barSmoothValues = new Array(64).fill(0);
+        this.smoothingFactor = 0.3;
         this.backgroundNoise = null;
         this.noiseCalibrationCount = 0;
         this.noiseMargin = 5;
@@ -22,24 +24,24 @@ class AudioVisualizer extends HTMLElement {
     }
 
     connectedCallback() {
-        this.innerHTML = '<div class="visualizer-container"></div>';
-        this.container = this.querySelector('.visualizer-container');
-        this.createFrequencyBars();
+        this.innerHTML = '<canvas class="visualizer-canvas"></canvas>';
+        this.canvas = this.querySelector('.visualizer-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.setupCanvas();
+        
+        this.resizeObserver = new ResizeObserver(() => this.setupCanvas());
+        this.resizeObserver.observe(this);
     }
 
-    createFrequencyBars() {
-        this.container.innerHTML = '';
-        this.bars = [];
+    setupCanvas() {
+        const rect = this.getBoundingClientRect();
+        this.canvas.width = rect.width || 800;
+        this.canvas.height = rect.height || 200;
+        this.canvas.style.width = '100%';
+        this.canvas.style.height = '100%';
         
-        for (let i = 0; i < this.barCount; i++) {
-            const bar = document.createElement('div');
-            bar.className = 'frequency-bar';
-            bar.style.width = `${Math.max(2, (100 / this.barCount) - 0.5)}%`;
-            bar.style.height = '2px';
-            bar.style.minHeight = '2px';
-            this.container.appendChild(bar);
-            this.bars.push(bar);
-        }
+        this.barWidth = (this.canvas.width / this.barCount) - 1;
+        this.barSpacing = 1;
     }
 
     async initAudio() {
@@ -98,9 +100,12 @@ class AudioVisualizer extends HTMLElement {
             this.animationId = null;
         }
         
-        this.bars.forEach(bar => {
-            bar.style.height = '2px';
-        });
+        this.barSmoothValues.fill(0);
+        this.clearCanvas();
+    }
+
+    clearCanvas() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
     animate() {
@@ -113,6 +118,8 @@ class AudioVisualizer extends HTMLElement {
         if (this.manualCalibrationActive) {
             this.recordCalibrationSample();
         }
+        
+        this.clearCanvas();
         
         const usableRange = Math.floor(this.bufferLength * 0.6);
         const barWidth = Math.floor(usableRange / this.barCount);
@@ -127,35 +134,63 @@ class AudioVisualizer extends HTMLElement {
             }
             
             const average = sum / (endIndex - startIndex);
-            let barHeight = this.processAudioLevel(average, i, startIndex, endIndex);
+            let barHeight = this.processAudioLevel(average);
             
             if (!this.manualCalibrationActive) {
-                if (barHeight > this.barPeaks[i]) {
-                    this.barPeaks[i] = barHeight;
+                this.barSmoothValues[i] = this.barSmoothValues[i] + (barHeight - this.barSmoothValues[i]) * this.smoothingFactor;
+                
+                if (this.barSmoothValues[i] > this.barPeaks[i]) {
+                    this.barPeaks[i] = this.barSmoothValues[i];
                     this.barPeakTimes[i] = currentTime;
                 } else if (currentTime - this.barPeakTimes[i] > this.peakHoldTime) {
-                    this.barPeaks[i] = Math.max(this.barPeaks[i] * 0.85, barHeight);
+                    this.barPeaks[i] = Math.max(this.barPeaks[i] * 0.85, this.barSmoothValues[i]);
                 } else {
-                    this.barPeaks[i] = Math.max(this.barPeaks[i] * 0.98, barHeight);
+                    this.barPeaks[i] = Math.max(this.barPeaks[i] * 0.98, this.barSmoothValues[i]);
                 }
                 
-                const displayHeight = Math.max(barHeight, this.barPeaks[i] * 0.5);
-                this.bars[i].style.height = `${displayHeight}%`;
-                
-                if (displayHeight > 70) {
-                    this.bars[i].style.boxShadow = '0 0 8px #00ff41, 0 0 16px #00ff41';
-                } else if (displayHeight > 40) {
-                    this.bars[i].style.boxShadow = '0 0 6px #00ff41, 0 0 12px #00ff41';
-                } else {
-                    this.bars[i].style.boxShadow = '0 0 4px #00ff41';
-                }
+                const displayHeight = Math.max(this.barSmoothValues[i], this.barPeaks[i] * 0.5);
+                this.drawBar(i, displayHeight);
             } else {
-                this.bars[i].style.height = '2px';
-                this.bars[i].style.boxShadow = '0 0 2px #ff4444';
+                this.drawCalibrationBar(i);
             }
         }
         
         this.animationId = requestAnimationFrame(() => this.animate());
+    }
+
+    drawBar(barIndex, heightPercent) {
+        const x = barIndex * (this.barWidth + this.barSpacing);
+        const barHeight = (heightPercent / 100) * this.canvas.height;
+        const y = this.canvas.height - barHeight;
+        
+        this.ctx.fillStyle = '#00ff41';
+        this.ctx.fillRect(x, y, this.barWidth, barHeight);
+        
+        if (heightPercent > 70) {
+            this.ctx.shadowColor = '#00ff41';
+            this.ctx.shadowBlur = 16;
+            this.ctx.fillRect(x, y, this.barWidth, barHeight);
+            this.ctx.shadowBlur = 0;
+        } else if (heightPercent > 40) {
+            this.ctx.shadowColor = '#00ff41';
+            this.ctx.shadowBlur = 8;
+            this.ctx.fillRect(x, y, this.barWidth, barHeight);
+            this.ctx.shadowBlur = 0;
+        }
+    }
+
+    drawCalibrationBar(barIndex) {
+        const x = barIndex * (this.barWidth + this.barSpacing);
+        const barHeight = 4;
+        const y = this.canvas.height - barHeight;
+        
+        this.ctx.fillStyle = '#ff4444';
+        this.ctx.fillRect(x, y, this.barWidth, barHeight);
+        
+        this.ctx.shadowColor = '#ff4444';
+        this.ctx.shadowBlur = 4;
+        this.ctx.fillRect(x, y, this.barWidth, barHeight);
+        this.ctx.shadowBlur = 0;
     }
 
     getLogFrequencyRange(barIndex) {
@@ -177,7 +212,7 @@ class AudioVisualizer extends HTMLElement {
         };
     }
 
-    processAudioLevel(rawLevel, barIndex, startIndex, endIndex) {
+    processAudioLevel(rawLevel) {
         let barHeight = (rawLevel / 255) * 100;
         
         return Math.max(1, Math.min(100, barHeight));
@@ -321,6 +356,10 @@ class AudioVisualizer extends HTMLElement {
 
     destroy() {
         this.stop();
+        
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+        }
         
         if (this.microphone) {
             this.microphone.disconnect();

@@ -189,39 +189,10 @@ footer {
     background: rgba(0, 255, 65, 0.05);
 }
 
-.visualizer-container {
+.visualizer-canvas {
     width: 100%;
     height: 100%;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    gap: 2px;
-    padding: 20px;
     background: linear-gradient(to top, rgba(0, 255, 65, 0.02) 0%, transparent 100%);
-}
-
-.frequency-bar {
-    background: linear-gradient(to top, 
-        #00ff41 0%, 
-        #00ff41 60%, 
-        #7fff7f 80%, 
-        #ffffff 100%);
-    border-radius: 2px 2px 0 0;
-    box-shadow: 0 0 4px #00ff41;
-    transition: height 0.05s ease-out;
-    animation: bar-glow 0.1s ease-out;
-}
-
-@keyframes bar-glow {
-    0% {
-        box-shadow: 0 0 4px #00ff41;
-    }
-    50% {
-        box-shadow: 0 0 8px #00ff41, 0 0 16px #00ff41;
-    }
-    100% {
-        box-shadow: 0 0 4px #00ff41;
-    }
 }
 
 @media (max-width: 768px) {
