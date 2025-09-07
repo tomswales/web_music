@@ -187,6 +187,7 @@ footer {
     border: 1px solid rgba(0, 255, 65, 0.3);
     border-radius: 20px;
     background: rgba(0, 255, 65, 0.05);
+    transition: opacity 0.5s ease-out;
 }
 
 .visualizer-canvas {
@@ -288,4 +289,42 @@ footer {
         font-size: 0.9em;
         padding: 6px 12px;
     }
+}
+
+/* Full-screen mode styles */
+body.fullscreen-mode header,
+body.fullscreen-mode footer .info {
+    display: none;
+}
+
+body.fullscreen-mode .container {
+    height: 100vh;
+    padding: 0;
+    justify-content: center;
+}
+
+body.fullscreen-mode main {
+    flex: 1;
+    padding: 0;
+    gap: 0;
+}
+
+body.fullscreen-mode audio-visualizer {
+    height: 70vh;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+body.fullscreen-mode channel-meters {
+    height: 30vh;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+body.fullscreen-mode #status {
+    display: none;
 }

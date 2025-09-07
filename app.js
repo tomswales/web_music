@@ -3,6 +3,7 @@ class MusicVisualizerApp {
         this.visualizer = document.getElementById('visualizer');
         this.channelMeters = document.getElementById('channelMeters');
         this.status = document.getElementById('status');
+        this.fullscreenBtn = document.getElementById('fullscreenBtn');
         this.isRunning = false;
         
         this.initEventListeners();
@@ -15,6 +16,14 @@ class MusicVisualizerApp {
                 this.startVisualizer();
             }
         }, { once: true });
+        
+        this.fullscreenBtn.addEventListener('click', () => this.enterFullscreen());
+        
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                document.body.classList.remove('fullscreen-mode');
+            }
+        });
         
         document.addEventListener('visibilitychange', () => {
             if (document.hidden && this.isRunning) {
@@ -77,6 +86,15 @@ class MusicVisualizerApp {
         this.updateStatus('Audio visualizer stopped');
     }
 
+    async enterFullscreen() {
+        try {
+            await document.documentElement.requestFullscreen();
+            document.body.classList.add('fullscreen-mode');
+        } catch (error) {
+            console.error('Error entering fullscreen:', error);
+            this.updateStatus('Fullscreen not supported in this browser');
+        }
+    }
 
     pauseVisualizer() {
         if (this.isRunning) {
