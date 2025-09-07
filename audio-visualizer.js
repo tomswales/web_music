@@ -15,6 +15,8 @@ class AudioVisualizer extends HTMLElement {
         this.barPeakTimes = new Array(64).fill(0);
         this.barSmoothValues = new Array(64).fill(0);
         this.smoothingFactor = 0.3;
+        this.spectrumHistory = [];
+        this.maxHistoryLayers = 10;
     }
 
     connectedCallback() {
@@ -34,8 +36,13 @@ class AudioVisualizer extends HTMLElement {
         this.canvas.style.width = '100%';
         this.canvas.style.height = '100%';
         
-        this.barWidth = (this.canvas.width / this.barCount) - 1;
-        this.barSpacing = 1;
+        this.baseBarSpacing = 1;
+        const availableWidth = this.canvas.width;
+        const totalSpacing = (this.barCount - 1) * this.baseBarSpacing;
+        const widthForBarsAndMargins = availableWidth - totalSpacing;
+        this.baseBarWidth = widthForBarsAndMargins / (this.barCount + 2);
+        this.marginWidth = this.baseBarWidth;
+        this.depthSpacing = this.canvas.height * 0.05;
     }
 
     async initAudio() {
@@ -88,6 +95,7 @@ class AudioVisualizer extends HTMLElement {
         }
         
         this.barSmoothValues.fill(0);
+        this.spectrumHistory = [];
         this.clearCanvas();
     }
 
@@ -131,30 +139,68 @@ class AudioVisualizer extends HTMLElement {
             }
             
             const displayHeight = Math.max(this.barSmoothValues[i], this.barPeaks[i] * 0.5);
-            this.drawBar(i, displayHeight);
+            this.barSmoothValues[i] = displayHeight;
         }
+        
+        this.updateSpectrumHistory();
+        this.draw3DSpectrum();
         
         this.animationId = requestAnimationFrame(() => this.animate());
     }
 
-    drawBar(barIndex, heightPercent) {
-        const x = barIndex * (this.barWidth + this.barSpacing);
-        const barHeight = (heightPercent / 100) * this.canvas.height;
-        const y = this.canvas.height - barHeight;
+    updateSpectrumHistory() {
+        this.spectrumHistory.unshift([...this.barSmoothValues]);
+        if (this.spectrumHistory.length > this.maxHistoryLayers) {
+            this.spectrumHistory.pop();
+        }
+    }
+
+    draw3DSpectrum() {
+        for (let layer = this.spectrumHistory.length - 1; layer >= 0; layer--) {
+            const spectrum = this.spectrumHistory[layer];
+            if (!spectrum) continue;
+            
+            const opacity = 1 - (layer / this.maxHistoryLayers);
+            const depth = layer * this.depthSpacing;
+            const scale = 1 - (layer * 0.05);
+            
+            this.drawSpectrumLayer(spectrum, depth, opacity, scale, layer === 0);
+        }
+    }
+
+    drawSpectrumLayer(spectrum, depth, opacity, scale, isFrontLayer) {
+        const barWidth = this.baseBarWidth * scale;
+        const barSpacing = this.baseBarSpacing * scale;
+        const marginWidth = this.marginWidth * scale;
+        const totalWidth = this.barCount * barWidth + (this.barCount - 1) * barSpacing + 2 * marginWidth;
+        const startX = (this.canvas.width - totalWidth) / 2 + marginWidth;
+        const baseY = this.canvas.height * 0.9 - depth;
         
-        this.ctx.fillStyle = '#00ff41';
-        this.ctx.fillRect(x, y, this.barWidth, barHeight);
-        
-        if (heightPercent > 70) {
-            this.ctx.shadowColor = '#00ff41';
-            this.ctx.shadowBlur = 16;
-            this.ctx.fillRect(x, y, this.barWidth, barHeight);
-            this.ctx.shadowBlur = 0;
-        } else if (heightPercent > 40) {
-            this.ctx.shadowColor = '#00ff41';
-            this.ctx.shadowBlur = 8;
-            this.ctx.fillRect(x, y, this.barWidth, barHeight);
-            this.ctx.shadowBlur = 0;
+        for (let i = 0; i < spectrum.length; i++) {
+            const heightPercent = spectrum[i];
+            const x = startX + i * (barWidth + barSpacing);
+            const barHeight = (heightPercent / 100) * this.canvas.height * 0.7 * scale;
+            const y = baseY - barHeight;
+            
+            let alpha = opacity * 0.8;
+            if (isFrontLayer) {
+                alpha = Math.min(1, opacity + 0.3);
+            }
+            
+            this.ctx.fillStyle = `rgba(0, 255, 65, ${alpha})`;
+            this.ctx.fillRect(x, y, barWidth, barHeight);
+            
+            if (isFrontLayer && heightPercent > 70) {
+                this.ctx.shadowColor = '#00ff41';
+                this.ctx.shadowBlur = 12 * opacity;
+                this.ctx.fillRect(x, y, barWidth, barHeight);
+                this.ctx.shadowBlur = 0;
+            } else if (isFrontLayer && heightPercent > 40) {
+                this.ctx.shadowColor = '#00ff41';
+                this.ctx.shadowBlur = 6 * opacity;
+                this.ctx.fillRect(x, y, barWidth, barHeight);
+                this.ctx.shadowBlur = 0;
+            }
         }
     }
 
