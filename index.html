@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Music Visualizer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 class="title">AUDIO VISUALIZER</h1>
+            <div class="controls">
+                <button id="calibrateBtn" class="control-btn">CALIBRATE NOISE</button>
+                <button id="startBtn" class="control-btn">START AUDIO</button>
+            </div>
+        </header>
+        
+        <main>
+            <audio-visualizer id="visualizer"></audio-visualizer>
+            <channel-meters id="channelMeters"></channel-meters>
+        </main>
+        
+        <footer>
+            <div class="info">
+                <span id="status">Click START to begin</span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="audio-visualizer.js"></script>
+    <script src="channel-meters.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,320 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Courier New', monospace;
+    background: radial-gradient(ellipse at center, #0a0a0a 0%, #000000 100%);
+    color: #00ff41;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 20px;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 40px;
+    border-bottom: 1px solid #00ff41;
+    padding-bottom: 20px;
+}
+
+.controls {
+    display: flex;
+    gap: 15px;
+}
+
+.title {
+    font-size: 2.5em;
+    font-weight: bold;
+    letter-spacing: 4px;
+    text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41, 0 0 40px #00ff41;
+    animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+    from {
+        text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41, 0 0 40px #00ff41;
+    }
+    to {
+        text-shadow: 0 0 20px #00ff41, 0 0 30px #00ff41, 0 0 60px #00ff41;
+    }
+}
+
+.control-btn {
+    background: transparent;
+    border: 2px solid #00ff41;
+    color: #00ff41;
+    padding: 12px 24px;
+    font-family: 'Courier New', monospace;
+    font-size: 1em;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.control-btn:hover {
+    background: rgba(0, 255, 65, 0.1);
+    box-shadow: 0 0 20px #00ff41;
+    transform: translateY(-2px);
+}
+
+.control-btn:active {
+    transform: translateY(0);
+}
+
+.control-btn.active {
+    background: rgba(0, 255, 65, 0.2);
+    box-shadow: 0 0 30px #00ff41;
+}
+
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 20px 0;
+    gap: 20px;
+}
+
+audio-visualizer {
+    display: block;
+    width: 100%;
+    height: 350px;
+    border: 1px solid #00ff41;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.8);
+    box-shadow: inset 0 0 20px rgba(0, 255, 65, 0.1);
+}
+
+channel-meters {
+    display: block;
+    width: 100%;
+    height: 100px;
+    border: 1px solid #00ff41;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.8);
+    box-shadow: inset 0 0 20px rgba(0, 255, 65, 0.1);
+}
+
+.channel-container {
+    padding: 20px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 15px;
+}
+
+.channel-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.channel-label {
+    font-family: 'Courier New', monospace;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #00ff41;
+    width: 20px;
+    text-align: center;
+    text-shadow: 0 0 4px #00ff41;
+}
+
+.channel-bar-container {
+    flex: 1;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid rgba(0, 255, 65, 0.3);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+}
+
+.channel-bar {
+    height: 100%;
+    background: linear-gradient(to right, 
+        #00ff41 0%, 
+        #00ff41 30%, 
+        #7fff7f 50%,
+        #ffaa00 70%, 
+        #ff8800 85%,
+        #ff4444 100%);
+    border-radius: 10px;
+    transition: width 0.02s ease-out;
+    box-shadow: 0 0 4px #00ff41, 0 0 8px #00ff41;
+    width: 0%;
+}
+
+.channel-value {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+    color: #00ff41;
+    width: 40px;
+    text-align: right;
+    opacity: 0.8;
+}
+
+footer {
+    text-align: center;
+    padding-top: 20px;
+    border-top: 1px solid rgba(0, 255, 65, 0.3);
+}
+
+.info {
+    font-size: 1.1em;
+    letter-spacing: 1px;
+    opacity: 0.8;
+}
+
+#status {
+    display: inline-block;
+    padding: 8px 16px;
+    border: 1px solid rgba(0, 255, 65, 0.3);
+    border-radius: 20px;
+    background: rgba(0, 255, 65, 0.05);
+}
+
+.visualizer-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 2px;
+    padding: 20px;
+    background: linear-gradient(to top, rgba(0, 255, 65, 0.02) 0%, transparent 100%);
+}
+
+.frequency-bar {
+    background: linear-gradient(to top, 
+        #00ff41 0%, 
+        #00ff41 60%, 
+        #7fff7f 80%, 
+        #ffffff 100%);
+    border-radius: 2px 2px 0 0;
+    box-shadow: 0 0 4px #00ff41;
+    transition: height 0.05s ease-out;
+    animation: bar-glow 0.1s ease-out;
+}
+
+@keyframes bar-glow {
+    0% {
+        box-shadow: 0 0 4px #00ff41;
+    }
+    50% {
+        box-shadow: 0 0 8px #00ff41, 0 0 16px #00ff41;
+    }
+    100% {
+        box-shadow: 0 0 4px #00ff41;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 15px 10px;
+    }
+    
+    header {
+        flex-direction: column;
+        gap: 20px;
+        align-items: center;
+        text-align: center;
+    }
+    
+    .title {
+        font-size: 1.8em;
+        letter-spacing: 2px;
+    }
+    
+    .controls {
+        flex-direction: column;
+        width: 100%;
+        max-width: 300px;
+        gap: 10px;
+    }
+    
+    .control-btn {
+        width: 100%;
+        padding: 12px 20px;
+        font-size: 0.9em;
+    }
+    
+    audio-visualizer {
+        height: 250px;
+    }
+    
+    channel-meters {
+        height: 80px;
+    }
+    
+    .channel-container {
+        padding: 15px;
+    }
+    
+    .channel-label {
+        font-size: 1em;
+        width: 15px;
+    }
+    
+    .channel-bar-container {
+        height: 15px;
+    }
+    
+    .channel-value {
+        font-size: 0.8em;
+        width: 35px;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 10px 5px;
+    }
+    
+    .title {
+        font-size: 1.4em;
+        letter-spacing: 1px;
+    }
+    
+    .control-btn {
+        padding: 10px 15px;
+        font-size: 0.8em;
+    }
+    
+    audio-visualizer {
+        height: 200px;
+    }
+    
+    channel-meters {
+        height: 70px;
+    }
+    
+    .channel-container {
+        padding: 10px;
+        gap: 10px;
+    }
+    
+    .channel-bar-container {
+        height: 12px;
+    }
+    
+    #status {
+        font-size: 0.9em;
+        padding: 6px 12px;
+    }
+}
