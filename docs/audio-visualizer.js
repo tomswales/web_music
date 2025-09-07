@@ -18,6 +18,11 @@ class AudioVisualizer extends HTMLElement {
         this.spectrumHistory = [];
         this.maxHistoryLayers = 10;
         this.fullscreenHistoryLayers = 15;
+        this.particles = [];
+        this.particlePool = [];
+        this.maxParticles = 200;
+        this.peakThreshold = 15;
+        this.rollingAverages = new Array(64).fill(0);
     }
 
     connectedCallback() {
@@ -97,6 +102,8 @@ class AudioVisualizer extends HTMLElement {
         
         this.barSmoothValues.fill(0);
         this.spectrumHistory = [];
+        this.particles = [];
+        this.rollingAverages.fill(0);
         this.clearCanvas();
     }
 
@@ -141,10 +148,15 @@ class AudioVisualizer extends HTMLElement {
             
             const displayHeight = Math.max(this.barSmoothValues[i], this.barPeaks[i] * 0.5);
             this.barSmoothValues[i] = displayHeight;
+            
+            this.updateRollingAverage(i, barHeight);
+            this.detectFrequencyPeaks(i, barHeight, displayHeight);
         }
         
         this.updateSpectrumHistory();
+        this.updateParticles();
         this.draw3DSpectrum();
+        this.drawParticles();
         
         this.animationId = requestAnimationFrame(() => this.animate());
     }
@@ -252,6 +264,125 @@ class AudioVisualizer extends HTMLElement {
         
         if (this.audioContext) {
             this.audioContext.close();
+        }
+    }
+
+    updateRollingAverage(barIndex, currentValue) {
+        this.rollingAverages[barIndex] = this.rollingAverages[barIndex] * 0.95 + currentValue * 0.05;
+    }
+
+    detectFrequencyPeaks(barIndex, rawValue, displayHeight) {
+        const threshold = this.rollingAverages[barIndex] + this.peakThreshold;
+        
+        if (rawValue > threshold && displayHeight > 20) {
+            this.spawnParticle(barIndex, displayHeight, rawValue);
+        }
+    }
+
+    spawnParticle(barIndex, height, intensity) {
+        if (this.particles.length >= this.maxParticles) {
+            return;
+        }
+        
+        let particle = this.particlePool.pop();
+        if (!particle) {
+            particle = {};
+        }
+        
+        const barWidth = this.baseBarWidth * 1;
+        const barSpacing = this.baseBarSpacing * 1;
+        const marginWidth = this.marginWidth * 1;
+        const totalWidth = this.barCount * barWidth + (this.barCount - 1) * barSpacing + 2 * marginWidth;
+        const startX = (this.canvas.width - totalWidth) / 2 + marginWidth;
+        
+        particle.x = startX + barIndex * (barWidth + barSpacing) + barWidth / 2;
+        particle.y = this.canvas.height * 0.9 - (height / 100) * this.canvas.height * 0.7;
+        particle.vx = (Math.random() - 0.5) * 2;
+        particle.vy = -Math.random() * 3 - 1;
+        particle.life = 1.0;
+        particle.decay = 0.01 + Math.random() * 0.01;
+        particle.size = 2 + (intensity / 100) * 3;
+        particle.frequency = barIndex;
+        particle.color = this.getFrequencyColor(barIndex, intensity);
+        
+        this.particles.push(particle);
+    }
+
+    getFrequencyColor(barIndex, intensity) {
+        const frequencyRatio = barIndex / (this.barCount - 1);
+        const brightness = Math.max(0.6, Math.min(intensity / 80, 1)); // Minimum 60% brightness, max at 80% intensity
+        
+        let r, g, b;
+        
+        if (frequencyRatio < 0.2) {
+            // Hot Magenta/Pink (bass)
+            r = 255;
+            g = 20;
+            b = 147;
+        } else if (frequencyRatio < 0.4) {
+            // Neon Orange (low-mid)
+            r = 255;
+            g = 140;
+            b = 0;
+        } else if (frequencyRatio < 0.6) {
+            // Electric Yellow (mid)
+            r = 255;
+            g = 255;
+            b = 0;
+        } else if (frequencyRatio < 0.8) {
+            // Neon Green (high-mid)
+            r = 50;
+            g = 255;
+            b = 50;
+        } else {
+            // Electric Cyan (treble)
+            r = 0;
+            g = 255;
+            b = 255;
+        }
+        
+        // Apply brightness while keeping the neon saturation
+        r = Math.round(r * brightness);
+        g = Math.round(g * brightness);
+        b = Math.round(b * brightness);
+        
+        return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    updateParticles() {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const particle = this.particles[i];
+            
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+            particle.vy += 0.1;
+            particle.vx *= 0.99;
+            particle.life -= particle.decay;
+            
+            if (particle.life <= 0) {
+                const deadParticle = this.particles.splice(i, 1)[0];
+                this.particlePool.push(deadParticle);
+            }
+        }
+    }
+
+    drawParticles() {
+        for (const particle of this.particles) {
+            const alpha = particle.life;
+            const size = particle.size * particle.life;
+            
+            this.ctx.save();
+            this.ctx.globalAlpha = alpha;
+            this.ctx.fillStyle = particle.color;
+            
+            this.ctx.shadowColor = particle.color;
+            this.ctx.shadowBlur = size * 2;
+            
+            this.ctx.beginPath();
+            this.ctx.arc(particle.x, particle.y, size, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            this.ctx.restore();
         }
     }
 }
