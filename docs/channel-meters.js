@@ -119,7 +119,10 @@ class ChannelMeters extends HTMLElement {
         let validSamples = 0;
         const baseline = channel === 'left' ? this.leftBaseline : this.rightBaseline;
         
-        for (let i = 0; i < dataArray.length; i++) {
+        // Use only bottom 55% of frequency spectrum (focus on bass/mid frequencies)
+        const usableRange = Math.floor(dataArray.length * 0.55);
+        
+        for (let i = 0; i < usableRange; i++) {
             const rawLevel = dataArray[i];
             const cleanLevel = Math.max(0, rawLevel - baseline);
             

@@ -9,11 +9,11 @@ class AudioVisualizer extends HTMLElement {
         this.animationId = null;
         this.isRunning = false;
         this.bars = [];
-        this.barCount = 64;
+        this.barCount = 48;
         this.peakHoldTime = 200;
-        this.barPeaks = new Array(64).fill(0);
-        this.barPeakTimes = new Array(64).fill(0);
-        this.barSmoothValues = new Array(64).fill(0);
+        this.barPeaks = new Array(48).fill(0);
+        this.barPeakTimes = new Array(48).fill(0);
+        this.barSmoothValues = new Array(48).fill(0);
         this.smoothingFactor = 0.3;
         this.spectrumHistory = [];
         this.maxHistoryLayers = 10;
@@ -22,7 +22,7 @@ class AudioVisualizer extends HTMLElement {
         this.particlePool = [];
         this.maxParticles = 200;
         this.peakThreshold = 15;
-        this.rollingAverages = new Array(64).fill(0);
+        this.rollingAverages = new Array(48).fill(0);
         this.musicEnergy = 0;
         this.bassEnergy = 0;
         this.midEnergy = 0;
@@ -128,8 +128,8 @@ class AudioVisualizer extends HTMLElement {
         
         this.clearCanvas();
         
-        const usableRange = Math.floor(this.bufferLength * 0.6);
-        const barWidth = Math.floor(usableRange / this.barCount);
+        const usableRange = Math.floor(this.bufferLength * 0.55);
+        const barWidth = Math.max(1, Math.floor(usableRange / this.barCount));
         
         for (let i = 0; i < this.barCount; i++) {
             let sum = 0;
